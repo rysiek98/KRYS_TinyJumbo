@@ -44,6 +44,7 @@ def process_associated_data(S, K, FB_ad, AD):
 a = state_update(S, K, 2048)
 
 
+# Processing plain text
 def process_plain_text(msg):
     mlen = msg.__len__()    # message length
     c = []                  # ciphertext
@@ -60,10 +61,10 @@ def process_plain_text(msg):
     if mlen % 32 > 0:
         S[36:39] = list(a ^ b for a, b in zip(S[36:39], FB_pc))
         S = state_update(S, K, 1024)
-        lenp = mlen % 32        # number of bits in partial block
-        startp = mlen - lenp    # starting position of partial block
+        lenp = mlen % 32                # number of bits in partial block
+        startp = mlen - lenp            # starting position of partial block
 
-        # the length (bytes) of the last partial block is XORed to the stat
+        # the length (bytes) of the last partial block is XORed to the state
         S[96: 96 + lenp] = list(a ^ b for a, b in zip(S[96: 96 + lenp], msg[startp:mlen]))
         c[startp:mlen] = list(a ^ b for a, b in zip(S[64: 64 + lenp], msg[startp:mlen]))
         S[32] ^= lenp
