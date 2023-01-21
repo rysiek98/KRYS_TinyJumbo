@@ -48,7 +48,7 @@ def process_plain_text(msg, S, K):
     # Processing last block of plain_text if it is a partial block
     if mlen % 32 > 0:
         S[36:39] = list(a ^ b for a, b in zip(S[36:39], FB_pc))
-        S = state_update(S, K, 1024) # tutaj bylo wczesniej 1024, ale chyba powinno byc 640?? Wg dokumentacji 1024
+        S = state_update(S, K, 1024)
         lenp = mlen % 32
         startp = mlen - lenp
 
@@ -89,6 +89,10 @@ def bitfield(n, wanted_len):
 
 
 def bit_array_to_bytes(arr):
+
+    if len(arr) % 8 != 0:
+        raise ValueError()
+
     byte_array = []
     for i in range(0, len(arr), 8):
         byte = arr[i:i + 8]
@@ -98,6 +102,7 @@ def bit_array_to_bytes(arr):
             value += byte[x]
         byte_array.append(value)
     return bytes(byte_array)
+
 
 def encryption(msg, K, N, AD):
     S = [0x0] * 128
@@ -118,28 +123,26 @@ def decryption(ct, K, N, AD):
 
 
 def main():
-
     N = [0] * 96  # nonce
     AD = [0] * 32  # associated data
 
     K = bitfield(getrandbits(128), 128)
 
-    msg = bitfield(getrandbits(1024), 1024)
+    message = []
+    with open("message.txt", encoding="utf-8") as message_file:
+        message = message_file.read()
+    message_bits = ''.join(format(ord(i), '08b') for i in message)
+    message_bits = [int(x) for x in message_bits]
 
-    ciphertext = encryption(msg, K, N, AD)
-    plaintext = decryption(ciphertext, K, N, AD)
-    print(ciphertext)
-    print(msg)
-    print(plaintext)
-    print(plaintext == msg)
+    ciphertext = encryption(message_bits, K, N, AD)
 
-    # Nie potrafie zamienic stringa na listę bitow XDD, z jakiegos powodu format(ord(i), '08b') czasem zwraca 9-bitowy string wtf?
-    # message = []
-    # with open("message.txt", encoding="utf-8") as message_file:
-    #     message = message_file.read()
-    #
-    # message_bits = ''.join(format(ord(i), '08b') for i in message)
-    # message_bits = [int(x) for x in message_bits]
+    decrypted_bits = decryption(ciphertext, K, N, AD)
+
+    decrypted_message = bit_array_to_bytes(decrypted_bits).decode("utf-8")
+
+    print(message[:40])
+    print(decrypted_message[:40])
+    print(message == decrypted_message)
 
 
 if __name__ == "__main__":
