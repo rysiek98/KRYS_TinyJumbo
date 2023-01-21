@@ -1,10 +1,10 @@
 from random import getrandbits
 
-klen = 128  # key length in bits
 FB_n = [0, 0, 1]  # FrameBits for nonce = 1
 FB_ad = [0, 1, 1]  # FrameBits for associated data = 3
 FB_pc = [1, 0, 1]  # FrameBits for plaintext and ciphertext = 5
 FB_f = [1, 1, 1]  # FrameBits for finalization = 5
+klen = 128  # key length in bits
 
 
 # Permutation
@@ -48,7 +48,7 @@ def process_plain_text(msg, S, K):
     # Processing last block of plain_text if it is a partial block
     if mlen % 32 > 0:
         S[36:39] = list(a ^ b for a, b in zip(S[36:39], FB_pc))
-        S = state_update(S, K, 640) # tutaj bylo wczesniej 1024, ale chyba powinno byc 640??
+        S = state_update(S, K, 1024) # tutaj bylo wczesniej 1024, ale chyba powinno byc 640?? Wg dokumentacji 1024
         lenp = mlen % 32
         startp = mlen - lenp
 
@@ -67,16 +67,16 @@ def decrypt_process_plain_test(ct, S, K):
         for k in range(int(clen / 32)):
             S[36:39] = list(a ^ b for a, b in zip(S[36:39], FB_pc))
             S = state_update(S, K, 1024)
-            S[96:128] = list(a ^ b for a, b in zip(S[96:128], ct[32 * k:32 * k + 32]))
             M[32 * k:32 * k + 32] = list(a ^ b for a, b in zip(S[64:96], ct[32 * k:32 * k + 32]))
+            S[96:128] = list(a ^ b for a, b in zip(S[96:128], M[32 * k:32 * k + 32]))
 
     if clen % 32 > 0:
         S[36:39] = list(a ^ b for a, b in zip(S[36:39], FB_pc))
-        S = state_update(S, K, 640)
+        S = state_update(S, K, 1024)
         lenp = clen % 32
         startp = clen - lenp
-        S[96:96 + lenp] = list(a ^ b for a, b in zip(S[96:96 + lenp], ct[startp:clen]))
         M[startp:clen] = list(a ^ b for a, b in zip(S[64:64 + lenp], ct[startp:clen]))
+        S[96:96 + lenp] = list(a ^ b for a, b in zip(S[96:96 + lenp], M[startp:clen]))
         S[32] ^= lenp
     return M
 
@@ -99,14 +99,39 @@ def bit_array_to_bytes(arr):
         byte_array.append(value)
     return bytes(byte_array)
 
+def encryption(msg, K, N, AD):
+    S = [0x0] * 128
+    S = state_update(S, K, 1024)
+    nonce_init(S, K, N)
+    process_associated_data(S, K, AD)
+    S = state_update(S, K, 1024)
+    return process_plain_text(msg, S, K)
+
+
+def decryption(ct, K, N, AD):
+    S = [0x0] * 128
+    S = state_update(S, K, 1024)
+    nonce_init(S, K, N)
+    process_associated_data(S, K, AD)
+    S = state_update(S, K, 1024)
+    return decrypt_process_plain_test(ct, S, K)
+
 
 def main():
-    state = [0x0] * 128
-    key = bitfield(getrandbits(128), 128)
-    nonce = [0] * 96
-    associated_data = [0] * 32
-    state = state_update(state, key, 1024)
-    a = state_update(state, key, 2048)
+
+    N = [0] * 96  # nonce
+    AD = [0] * 32  # associated data
+
+    K = bitfield(getrandbits(128), 128)
+
+    msg = bitfield(getrandbits(1024), 1024)
+
+    ciphertext = encryption(msg, K, N, AD)
+    plaintext = decryption(ciphertext, K, N, AD)
+    print(ciphertext)
+    print(msg)
+    print(plaintext)
+    print(plaintext == msg)
 
     # Nie potrafie zamienic stringa na listę bitow XDD, z jakiegos powodu format(ord(i), '08b') czasem zwraca 9-bitowy string wtf?
     # message = []
@@ -115,18 +140,6 @@ def main():
     #
     # message_bits = ''.join(format(ord(i), '08b') for i in message)
     # message_bits = [int(x) for x in message_bits]
-
-    message_bits = bitfield(getrandbits(1024), 1024)
-    ciphertext = process_plain_text(message_bits, state, key)
-
-    # decrypt
-    state = [0x0] * 128
-    state = state_update(state, key, 1024)
-    decrypted_message_bits = decrypt_process_plain_test(ciphertext, state, key)
-    # decrypted_message = bit_array_to_bytes(decrypted_message_bits).decode("utf-8")
-
-    print(message_bits[120:140])
-    print(decrypted_message_bits[120:140])
 
 
 if __name__ == "__main__":
