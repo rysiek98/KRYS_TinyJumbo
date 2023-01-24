@@ -124,7 +124,9 @@ def decryption(ct, K, N, AD):
 
 def main():
     N = [0] * 96  # nonce
+    N = bitfield(getrandbits(96), 96)  # random nonce
     AD = [0] * 32  # associated data
+    AD = bitfield(getrandbits(32), 32)  # random associated data
 
     K = bitfield(getrandbits(128), 128)
 
@@ -140,9 +142,11 @@ def main():
 
     decrypted_message = bit_array_to_bytes(decrypted_bits).decode("utf-8")
 
-    print(message[:40])
-    print(decrypted_message[:40])
-    print(message == decrypted_message)
+    print("Message: " + message[:70])
+    print("Plaintext: " + str(message_bits[:60]))
+    print("Ciphertext: " + str(ciphertext[:60]))
+    print("Decoded message: " + decrypted_message[:70])
+    print("Result: " + str(message == decrypted_message))
 
 
 if __name__ == "__main__":
